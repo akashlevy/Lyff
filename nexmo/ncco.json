@@ -1,0 +1,21 @@
+[
+    {
+        "action": "talk",
+        "text": "Hello, welcome to Liff. To get started, say \"Book a Lift\"."
+    },
+    {
+        "action": "connect",
+        "endpoint": [
+            {
+                "content-type": "audio/l16;rate=16000",
+                "headers": {
+                    "aws_key": "AWS_KEY_HERE",
+                    "aws_secret": "AWS_SECRET_HERE"
+                },
+                "type": "websocket",
+                "uri": "wss://lex-us-east-1.nexmo.com/bot/BookLyft/alias/Prod/user/AWSServiceRoleForLexBots/content"
+            }
+        ],
+        "eventUrl": []
+    }
+]
