@@ -1,2 +1,4 @@
-# PennApps2017
-PennApps2017
+# Lyff
+Ever find yourself without internet access? Use Lyff to call a Lyft with just a phone call!
+
+![Lyff Logo](/lyff-logo.png)
