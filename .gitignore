@@ -57,3 +57,6 @@ typings/
 # dotenv environment variables file
 .env
 
+# Ignore private key
+nexmo/*
+

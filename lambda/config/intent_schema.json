@@ -1,0 +1,17 @@
+{
+    "intents": [
+        {
+            "slots": [
+                {
+                    "name": "PickupAddress",
+                    "type": "AMAZON.StreetAddress"
+                },
+                {
+                    "name": "PickupAddress",
+                    "type": "AMAZON.StreetAddress"
+                }
+            ],
+            "intent": "OrderLyft"
+        }
+    ]
+}
