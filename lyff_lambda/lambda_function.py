@@ -244,8 +244,8 @@ def book_lyft(intent_req):
 
     if session_attrs['state'] == 'status':
         status = lyft.check_ride(session_attrs['access_token'], session_attrs['ride_id'])
-        ride_status = status['rideStatus']
-        return elicit_slot(session_attrs, name, slots, 'Status', "Status: " % ride_status)
+        ride_status = status['status']
+        return elicit_slot(session_attrs, name, slots, 'Status', "Status: %s" % ride_status)
 
 
 # --- Intents ---
