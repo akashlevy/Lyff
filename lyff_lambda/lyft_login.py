@@ -2,7 +2,7 @@ import requests
 import urllib
 import re
 
-from lyft import CLIENT_ID, CLIENT_SECRET
+from lyft_creds import CLIENT_ID, CLIENT_SECRET
 from pprint import pprint
 
 def login_get_xsrf_token(session):
@@ -52,10 +52,9 @@ def get_access_token(authorization_code):
         verify=False,
         data={'grant_type': 'authorization_code', 'code': authorization_code}
     )
-    print r.text
     return r.json()
 
-if __name__ == '__main__' or True:
+if __name__ == '__main__':
     session = None
     while session is None:
         phone_number = raw_input('enter phone number: ')
