@@ -53,7 +53,7 @@ def format_estimates(estimates):
     output = 'I found %d ride types. ' % len(estimates.prices)
     for estimate in estimates.prices:
         if estimate['estimated_cost_cents_min'] == estimate['estimated_cost_cents_max']:
-            cost = str(round(estimate['estimated_cost_cents_min'] / 100))
+            cost = '%d' % (round(estimate['estimated_cost_cents_min'] / 100))
         else:
             cost = '%d to %d' % (round(estimate['estimated_cost_cents_min'] / 100), round(estimate['estimated_cost_cents_max'] / 100))
         cost += ' dollars'
