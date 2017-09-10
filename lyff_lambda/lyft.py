@@ -33,32 +33,33 @@ def get_estimates(start, end):
     lat, lng = geocode(start)
     lat2, lng2 = geocode(end)
     LOGGER.debug((lat, lng, lat2, lng2))
-    reqPrices = requests.get(
+    req_prices = requests.get(
         'https://api.lyft.com/v1/cost?start_lat=%s&start_lng=%s&end_lat=%s&end_lng=%s' % (lat, lng, lat2, lng2),
         headers=get_token_header()
     )
     LOGGER.debug('Got estimates')
 
-    reqETA = requests.get('https://api.lyft.com/v1/eta?lat=%s&lng=%s' % (lat, lng), headers=get_token_header())
+    req_eta = requests.get('https://api.lyft.com/v1/eta?lat=%s&lng=%s' % (lat, lng), headers=get_token_header())
     LOGGER.debug('Got ETA')
 
-    Estimates = collections.namedtuple('Estimates', ['prices', 'eta']) 
-    e = Estimates(reqPrices.json()['cost_estimates'], reqETA.json()['eta_estimates'])
-    return e
+    req_prices.json()['cost_estimates']
+    estimates = {}
 
-def format_estimates(estimates):
+    return req_prices.json()['cost_estimates'], req_eta.json()['eta_estimates']
+
+def format_estimates(est_prices, est_etas):
     """
     Format estimates for Lex.
     """
-    output = 'I found %d ride types. ' % len(estimates.cost_estimates)
-    for estimate in estimates.cost_estimates:
+    output = 'I found %d ride types. ' % len(est_prices)
+    for est_price, est_eta in zipestimates.prices:
         if estimate['estimated_cost_cents_min'] == estimate['estimated_cost_cents_max']:
             cost = str(round(estimate['estimated_cost_cents_min'] / 100))
         else:
             cost = 'between %d and %d' % (round(estimate['estimated_cost_cents_min'] / 100), round(estimate['estimated_cost_cents_max'] / 100))
         cost += ' dollars'
         output += 'A %s will cost %s. ' % (estimate['display_name'], cost)
-        for etaEstimate in estimates.eta_estimates:
+        for etaEstimate in estimates.eta:
             if estimate['ride_type'] == etaEstimate['ride_type']:
                 output += 'It will arrive in approximately %d minutes.' % (etaEstimate["eta_seconds"] / 60) 
     output += 'Which type of ride would you like?'
@@ -110,5 +111,5 @@ if __name__ == '__main__':
     #LOGGER.debug(format_estimates(ESTS))
 
     ssl._create_default_https_context = ssl._create_unverified_context
-    result = get_estimates('5049 Oceania St.', 'Princeton University')
+    est_prices, est_etas = get_estimates('5049 Oceania St.', 'Princeton University')
     print(format_estimates(result))
