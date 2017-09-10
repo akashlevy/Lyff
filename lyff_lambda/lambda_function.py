@@ -143,7 +143,7 @@ def book_lyft(intent_req):
             except:
                 pass
         if 'access_token' not in session_attrs:
-            session_attrs['state'] = 'get_pin'
+            headers, cookies = lyft_login.login_start(intent_req['userId'])
             return elicit_slot(session_attrs, name, slots, 'LyftPIN',
                                'There was an error with the PIN you entered %s.'
                                'A Lyft PIN was just texted to you, please say the 4 digits.' %
