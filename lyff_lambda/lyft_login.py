@@ -21,17 +21,20 @@ def login_start(phone_number):
     )
     if r.status_code != 200:
         return None
-    return s
+    return s.headers, s.cookies
 
-def login_continue(session, phone_number, code):
-    r = session.post(
+def login_continue(headers, cookies, phone_number, code):
+    s = requests.Session()
+    s.headers = headers
+    s.cookies = cookies
+    r = s.post(
         'https://www.lyft.com/api/lyft_auth/verify_user?phoneNumber=%s&verificationCode=%s' % (urllib.quote_plus(phone_number), code),
         verify=False,
-        headers={'X-XSRF-TOKEN': login_get_xsrf_token(session)}
+        headers={'X-XSRF-TOKEN': login_get_xsrf_token(s)}
     )
     if r.status_code != 200:
         return None
-    r2 = session.post(
+    r2 = s.post(
         'https://www.lyft.com/api/oauth/access_code',
         json={
             "client_id": CLIENT_ID,
@@ -40,7 +43,7 @@ def login_continue(session, phone_number, code):
             "response_type": "code"
         },
         verify=False,
-        headers={'X-XSRF-TOKEN': login_get_xsrf_token(session)}
+        headers={'X-XSRF-TOKEN': login_get_xsrf_token(s)}
     )
     url = r2.json()['immediate_redirect_uri']
     return re.search(r'\?code=([^&]+)&', url).group(1)
@@ -55,15 +58,15 @@ def get_access_token(authorization_code):
     return r.json()
 
 if __name__ == '__main__':
-    session = None
-    while session is None:
+    headers, cookies = None, None
+    while headers is None or cookies is None:
         phone_number = raw_input('enter phone number: ')
-        session = login_start(phone_number)
+        headers, cookies = login_start(phone_number)
 
     authorization_code = None
     while authorization_code is None:
         verify_code = raw_input('enter verification code: ')
-        authorization_code = login_continue(session, phone_number, verify_code)
+        authorization_code = login_continue(headers, cookies, phone_number, verify_code)
 
     print 'got authorization code: ' + authorization_code
 

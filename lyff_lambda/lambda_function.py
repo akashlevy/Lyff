@@ -3,6 +3,8 @@
 import json
 import logging
 import lyft
+import lyft_login
+import pickle
 
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.DEBUG)
@@ -103,7 +105,7 @@ def book_lyft(intent_req):
 
     # Precursory state logic
     if 'state' not in session_attrs:
-        session_attrs['state'] = 'get_pickup_address'
+        session_attrs['state'] = 'get_pin'
 
     if session_attrs['state'] == 'post_confirm_pickup_address':
         if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() == 'no':
@@ -118,6 +120,35 @@ def book_lyft(intent_req):
             session_attrs['state'] = 'validate_dropoff_address'
 
     # Main state logic
+    if session_attrs['state'] == 'get_pin':
+        session_attrs['state'] = 'get_pin_continue'
+        headers, cookies = lyft_login.login_start(intent_req['userId'])
+        session_attrs['lyft_headers'] = pickle.dumps(headers)
+        session_attrs['lyft_cookies'] = pickle.dumps(cookies)
+        return elicit_slot(session_attrs, name, slots, 'LyftPIN',
+                           'A Lyft PIN was just texted to you, please say the 4 digits.')
+    if session_attrs['state'] == 'get_pin_continue':
+        token1 = lyft_login.login_continue(
+            pickle.loads(session_attrs['lyft_headers']),
+            pickle.loads(session_attrs['lyft_cookies']),
+            intent_req['userId'],
+            slots['LyftPIN']
+        )
+        if token1 is not None:
+            try:
+                tokens = lyft_login.get_access_token(token1)
+                session_attrs['access_token'] = tokens['access_token']
+                session_attrs['refresh_token'] = tokens['refresh_token']
+                session_attrs['state'] = 'get_pickup_address'
+            except:
+                pass
+        if 'access_token' not in session_attrs:
+            session_attrs['state'] = 'get_pin'
+            return elicit_slot(session_attrs, name, slots, 'LyftPIN',
+                               'There was an error with the PIN you entered %s.'
+                               'A Lyft PIN was just texted to you, please say the 4 digits.' %
+                               slots['LyftPIN'])
+
     if session_attrs['state'] == 'get_pickup_address':
         session_attrs['state'] = 'confirm_pickup_address'
         return elicit_slot(session_attrs, name, slots, 'PickupAddress',
