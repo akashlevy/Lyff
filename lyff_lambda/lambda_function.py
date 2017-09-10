@@ -278,7 +278,11 @@ def dispatch(intent_req):
 
     # Dispatch to your bot's intent handlers
     if intent_name == 'BookLyft':
-        return book_lyft(intent_req)
+        try:
+            return book_lyft(intent_req)
+        except Exception as e:
+            LOGGER.debug(str(e))
+            return close(session_attrs, 'Failed', 'Something went wrong. Please say Book a Lyft to try again.')
 
     raise Exception('Intent with name ' + intent_name + ' not supported')
 
