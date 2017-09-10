@@ -1,7 +1,7 @@
+import json
 import requests
 import urllib
 import re
-import simplejson as json
 
 from lyft_creds import CLIENT_ID, CLIENT_SECRET
 from pprint import pprint

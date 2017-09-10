@@ -102,22 +102,29 @@ def book_lyft(intent_req):
     slots = intent_req['currentIntent']['slots']
     session_attrs = intent_req['sessionAttributes'] if intent_req['sessionAttributes'] else {}
 
+    if len(intent_req['userId']) > 13:
+        intent_req['userId'] = '6466230283'
+
     LOGGER.debug(intent_req)
+
+
+    # Setup S3 for storing Lyff user tokens
+    with open('rootkey.csv') as file:
+        keys = [line.split('=')[1].strip() for line in file.readlines()]
+    conn = S3Connection(keys[0], keys[1])
+    bucket = conn.get_bucket('lyff-users', validate=False)
 
 
     # Precursory state logic
     if 'state' not in session_attrs:
-        with open('rootkey.csv') as file:
-            keys = [line.split('=') for line in file.readlines()]
-        conn = S3Connection(keys[0], keys[1])
-        bucket = conn.get_bucket('lyff-pennappsf17', validate=False)
-        if bucket.get_key(intent_req['userId']) is not None:
-            access_keys = json.loads(bucket.get_key(intent_req['userId']))
+        key = bucket.get_key(intent_req['userId'])
+        if key is not None:
+            access_keys = json.loads(key.get_contents_as_string())
             session_attrs['access_token'] = access_keys['access_token']
             session_attrs['refresh_token'] = access_keys['refresh_token']
-            session_attrs['state'] = 'get_pin'
-        else:
             session_attrs['state'] = 'get_pickup_address'
+        else:
+            session_attrs['state'] = 'get_pin'
 
     if session_attrs['state'] == 'post_confirm_pickup_address':
         if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() == 'no':
@@ -132,7 +139,7 @@ def book_lyft(intent_req):
             session_attrs['state'] = 'validate_dropoff_address'
 
     if session_attrs['state'] == 'confirmation':
-        if not (slots['Confirmtion'] is None or slots['Confirmation'].lower() == 'no'):
+        if not (slots['Confirmation'] is None or slots['Confirmation'].lower() == 'no'):
             session_attrs['state'] = 'book_lyft'
 
 
@@ -152,21 +159,24 @@ def book_lyft(intent_req):
             slots['LyftPIN']
         )
         if token1 is not None:
-            try:
-                tokens = lyft_login.get_access_token(token1)
-                session_attrs['access_token'] = tokens['access_token']
-                session_attrs['refresh_token'] = tokens['refresh_token']
-                session_attrs['state'] = 'get_pickup_address'
-            except:
-                pass
+            tokens = lyft_login.get_access_token(token1)
+            key = bucket.new_key(intent_req['userId'])
+            key.set_contents_from_string(json.dumps(tokens))
+            session_attrs['access_token'] = tokens['access_token']
+            session_attrs['refresh_token'] = tokens['refresh_token']
+            session_attrs['state'] = 'get_pickup_address'
         if 'access_token' not in session_attrs:
-            headers, cookies = lyft_login.login_start(intent_req['userId'])
             return elicit_slot(session_attrs, name, slots, 'LyftPIN',
                                'There was an error with the PIN you entered %s.'
-                               'A Lyft PIN was just texted to you, please say the 4 digits.' %
+                               'Please reenter the 4 digits.' %
                                slots['LyftPIN'])
 
     if session_attrs['state'] == 'get_pickup_address':
+        try:
+            del session_attrs['lyft_headers']
+            del session_attrs['lyft_cookies']
+        except KeyError:
+            pass
         session_attrs['state'] = 'confirm_pickup_address'
         return elicit_slot(session_attrs, name, slots, 'PickupAddress',
                            'At what address would you like to be picked up?')
@@ -206,7 +216,7 @@ def book_lyft(intent_req):
 
     if session_attrs['state'] == 'get_ride_type':
         estimates = lyft.get_estimates(slots['PickupAddress'], slots['DropoffAddress'])
-        session_attrs['estimates'] = json.dumps(estimates)
+        #session_attrs['estimates'] = json.dumps(estimates)
         session_attrs['state'] = 'confirmation'
         return elicit_slot(session_attrs, name, slots, 'RideType',
                            lyft.format_estimates(estimates))
@@ -221,7 +231,7 @@ def book_lyft(intent_req):
         ride = lyft.request_ride(
             lyft.geocode(slots['PickupAddress']),
             lyft.geocode(slots['DropoffAddress']),
-            slots['RideType'],
+            slots['RideType'].lower().split().join('_'),
             session_attrs['access_token'],
             None
         )
