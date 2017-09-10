@@ -127,19 +127,26 @@ def book_lyft(intent_req):
             session_attrs['state'] = 'get_pin'
 
     if session_attrs['state'] == 'post_confirm_pickup_address':
-        if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() == 'no':
+        if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() != 'yes':
             session_attrs['state'] = 'get_pickup_address'
         else:
             session_attrs['state'] = 'validate_pickup_address'
 
     if session_attrs['state'] == 'post_confirm_dropoff_address':
-        if slots['DropoffAddressConfirm'] is None or slots['DropoffAddressConfirm'].lower() == 'no':
+        if slots['DropoffAddressConfirm'] is None or slots['DropoffAddressConfirm'].lower() != 'yes':
             session_attrs['state'] = 'get_dropoff_address'
         else:
             session_attrs['state'] = 'validate_dropoff_address'
 
+    if session_attrs['state'] == 'post_confirm_ride_type':
+        if slots['RideTypeConfirm'] is None or slots['RideTypeConfirm'].lower() != 'yes':
+            session_attrs['state'] = 'confirm_ride_type'
+            return elicit_slot(session_attrs, name, slots, 'RideType', 'Which ride type?')
+        else:
+            session_attrs['state'] = 'confirmation'
+
     if session_attrs['state'] == 'confirmation':
-        if not (slots['Confirmation'] is None or slots['Confirmation'].lower() == 'no'):
+        if not (slots['Confirmation'] is None or slots['Confirmation'].lower() != 'yes'):
             session_attrs['state'] = 'book_lyft'
 
 
@@ -216,10 +223,13 @@ def book_lyft(intent_req):
 
     if session_attrs['state'] == 'get_ride_type':
         estimates = lyft.get_estimates(slots['PickupAddress'], slots['DropoffAddress'])
-        #session_attrs['estimates'] = json.dumps(estimates)
-        session_attrs['state'] = 'confirmation'
+        session_attrs['state'] = 'confirm_ride_type'
         return elicit_slot(session_attrs, name, slots, 'RideType',
                            lyft.format_estimates(estimates))
+    if session_attrs['state'] == 'confirm_ride_type':
+        session_attrs['state'] = 'post_confirm_ride_type'
+        return elicit_slot(session_attrs, name, slots, 'RideTypeConfirm',
+                           'Was that %s?' % slots['RideType'])
 
     if session_attrs['state'] == 'confirmation':
         msg = 'Should I confirm your %s ride from %s to %s?'
