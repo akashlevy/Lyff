@@ -3,11 +3,12 @@
 import logging
 import requests
 
+from lyft_creds import CLIENT_ID, CLIENT_SECRET
+from pprint import pprint
+
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.DEBUG)
 
-CLIENT_ID = 'fBS6oabCfDgN'
-CLIENT_SECRET = '2cGuUbI8XauyU0aQamoSm6NAv4Vxpg_Q'
 PERMISSION_SCOPES = 'public'
 
 def get_token_header():
@@ -64,6 +65,30 @@ def geocode(address):
     LOGGER.debug('Got geocode')
     return (location['lat'], location['lng'])
 
+def request_ride(start, end, ride_type, access_token, cost_token):
+    r = requests.post(
+        'https://api.lyft.com/v1/rides',
+        headers={'Authorization': 'Bearer ' + access_token},
+        json={
+            "ride_type": ride_type,
+            "origin": {
+                "lat": start[0],
+                "lng": start[1],
+            },
+            "destination": {
+                "lat": end[0],
+                "lng": end[1],
+            },
+        },
+    )
+    return r.json()
+
+def check_ride(access_token, ride_id):
+    r = requests.get(
+        'https://api.lyft.com/v1/rides/%s' % ride_id,
+        headers={'Authorization': 'Bearer ' + access_token},
+    )
+    return r.json()
 
 # --- Test code ---
 
