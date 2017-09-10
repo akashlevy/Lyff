@@ -6,6 +6,8 @@ import lyft
 import lyft_login
 import pickle
 
+from boto.s3.connection import S3Connection
+
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.DEBUG)
 
@@ -105,7 +107,17 @@ def book_lyft(intent_req):
 
     # Precursory state logic
     if 'state' not in session_attrs:
-        session_attrs['state'] = 'get_pin'
+        with open('rootkey.csv') as file:
+            keys = [line.split('=') for line in file.readlines()]
+        conn = S3Connection(keys[0], keys[1])
+        bucket = conn.get_bucket('lyff-pennappsf17', validate=False)
+        if bucket.get_key(intent_req['userId']) is not None:
+            access_keys = json.loads(bucket.get_key(intent_req['userId']))
+            session_attrs['access_token'] = access_keys['access_token']
+            session_attrs['refresh_token'] = access_keys['refresh_token']
+            session_attrs['state'] = 'get_pin'
+        else:
+            session_attrs['state'] = 'get_pickup_address'
 
     if session_attrs['state'] == 'post_confirm_pickup_address':
         if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() == 'no':
@@ -200,11 +212,9 @@ def book_lyft(intent_req):
                            lyft.format_estimates(estimates))
 
     if session_attrs['state'] == 'confirmation':
-        msg = 'Should I confirm your %s ride from %s to %s, arriving in %s minutes, for $%s?'
+        msg = 'Should I confirm your %s ride from %s to %s?'
         rtype, pickup, dropoff = slots['RideType'], slots['PickupAddress'], slots['DropoffAddress']
-        #eta, cost = session_attrs['ETA'], session_attrs['$']
-        eta, cost = '5 minutes', '5'
-        msg = msg % (rtype, pickup, dropoff, eta, cost)
+        msg = msg % (rtype, pickup, dropoff)
         return elicit_slot(session_attrs, name, slots, 'Confirmation', msg)
 
     if session_attrs['state'] == 'book_lyft':
@@ -216,7 +226,7 @@ def book_lyft(intent_req):
             None
         )
         if 'ride_id' not in ride:
-            return close(session_attrs, 'Fulfilled', 'Ride could not be booked.')
+            return close(session_attrs, 'Failed', 'Ride could not be booked.')
         session_attrs['ride_id'] = ride['ride_id']
         session_attrs['state'] = 'status'
         return elicit_slot(session_attrs, name, slots, 'Confirmation', "Ride booked! "
@@ -225,7 +235,7 @@ def book_lyft(intent_req):
     if session_attrs['state'] == 'status':
         status = lyft.check_ride(session_attrs['access_token'], session_attrs['ride_id'])
         ride_status = status['rideStatus']
-        return elicit_slot(session_attrs, name, slots, 'Confirmation', "Status: " % ride_status)
+        return elicit_slot(session_attrs, name, slots, 'Status', "Status: " % ride_status)
 
 
 # --- Intents ---
