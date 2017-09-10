@@ -61,16 +61,19 @@ def get_access_token(authorization_code):
     return r.json()
 
 if __name__ == '__main__':
-    conn = S3Connection('AKIAIFD2RRTTU5KT54EQ', '54qZVoT8IZWVbukvx+H0/5HF647GUI2+3n5QB+oH')
+    conn = S3Connection('AWS_KEY_HERE', 'AWS_SECRET_HERE')
     bucket = conn.get_bucket('lyff-pennappsf17', validate=False)
     headers, cookies = None, None
     while headers is None or cookies is None:
         phone_number = raw_input('enter phone number: ')
         headers, cookies = login_start(phone_number)
 
+    # calling after the first time
     if (bucket.get_key(phone_number) is not None):
+        # JSON object from the S3 instance if it exists
         pprint(bucket.get_key(phone_number))
 
+    # the first time you call
     elif (bucket.get_key(phone_number) is None):
         authorization_code = None
         while authorization_code is None:
