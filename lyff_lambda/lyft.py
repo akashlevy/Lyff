@@ -33,17 +33,17 @@ def get_estimates(start, end):
     lat, lng = geocode(start)
     lat2, lng2 = geocode(end)
     LOGGER.debug((lat, lng, lat2, lng2))
-    reqPrices = requests.get(
+    req_prices = requests.get(
         'https://api.lyft.com/v1/cost?start_lat=%s&start_lng=%s&end_lat=%s&end_lng=%s' % (lat, lng, lat2, lng2),
         headers=get_token_header()
     )
     LOGGER.debug('Got estimates')
 
-    reqETA = requests.get('https://api.lyft.com/v1/eta?lat=%s&lng=%s' % (lat, lng), headers=get_token_header())
+    req_eta = requests.get('https://api.lyft.com/v1/eta?lat=%s&lng=%s' % (lat, lng), headers=get_token_header())
     LOGGER.debug('Got ETA')
 
     Estimates = collections.namedtuple('Estimates', ['prices', 'eta']) 
-    e = Estimates(reqPrices.json()['cost_estimates'], reqETA.json()['eta_estimates'])
+    e = Estimates(req_prices.json()['cost_estimates'], req_eta.json()['eta_estimates'])
     return e
 
 def format_estimates(estimates):
