@@ -1,5 +1,6 @@
 '''Lambda function for booking a Lyft with Lyff'''
 
+import json
 import logging
 import lyft
 
@@ -100,52 +101,73 @@ def book_lyft(intent_req):
     LOGGER.debug(intent_req)
 
 
-    if slots['PickupAddress'] is None or slots['PickupAddressConfirm'].lower() == 'no':
-        session_attrs['PickupAddressConfirm'] = 'no'
+    # Precursory state logic
+    if 'state' not in session_attrs:
+        session_attrs['state'] = 'get_pickup_address'
+
+    if session_attrs['state'] == 'post_confirm_pickup_address':
+        if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() == 'no':
+            session_attrs['state'] = 'get_pickup_address'
+        else:
+            session_attrs['state'] = 'validate_pickup_address'
+
+    if session_attrs['state'] == 'post_confirm_dropoff_address':
+        if slots['DropoffAddressConfirm'] is None or slots['DropoffAddressConfirm'].lower() == 'no':
+            session_attrs['state'] = 'get_dropoff_address'
+        else:
+            session_attrs['state'] = 'validate_dropoff_address'
+
+    # Main state logic
+    if session_attrs['state'] == 'get_pickup_address':
+        session_attrs['state'] = 'confirm_pickup_address'
         return elicit_slot(session_attrs, name, slots, 'PickupAddress',
                            'At what address would you like to be picked up?')
-    if slots['PickupAddressConfirm'] is None or
-       session_attrs['PickupAddressConfirm'].lower() == 'no':
+    if session_attrs['state'] == 'confirm_pickup_address':
+        session_attrs['state'] = 'post_confirm_pickup_address'
         return elicit_slot(session_attrs, name, slots, 'PickupAddressConfirm',
                            'Was that %s?' % slots['PickupAddress'])
-    if 'PickupAddressValidated' not in session_attrs:
+    if session_attrs['state'] == 'validate_pickup_address':
         try:
             lyft.geocode(slots['PickupAddress'])
-            session_attrs['PickupAddressValidated'] = True
+            session_attrs['state'] = 'get_dropoff_address'
         except IndexError:
+            session_attrs['state'] = 'confirm_pickup_address'
             return elicit_slot(session_attrs, name, slots, 'PickupAddress',
                                'The pickup address you specified, %s, could not be found. '
                                'Try again.' % slots['PickupAddress'])
 
 
-    if slots['DropoffAddress'] is None or slots['DropoffAddressConfirm'].lower() == 'no':
-        session_attrs['PickupAddressConfirm'] = 'no'
+    if session_attrs['state'] == 'get_dropoff_address':
+        session_attrs['state'] = 'confirm_dropoff_address'
         return elicit_slot(session_attrs, name, slots, 'DropoffAddress',
                            'At what address would you like to be dropped off?')
-    if slots['PickupAddressConfirm'] is None or
-    session_attrs['DropoffAddressConfirm'].lower() == 'no':
-        return elicit_slot(session_attrs, name, slots, 'PickupAddressConfirm',
-                           'Was that %s?' % slots['PickupAddress'])
-    if 'DropoffAddressValidated' not in session_attrs:
+    if session_attrs['state'] == 'confirm_dropoff_address':
+        session_attrs['state'] = 'post_confirm_dropoff_address'
+        return elicit_slot(session_attrs, name, slots, 'DropoffAddressConfirm',
+                           'Was that %s?' % slots['DropoffAddress'])
+    if session_attrs['state'] == 'validate_dropoff_address':
         try:
             lyft.geocode(slots['DropoffAddress'])
-            session_attrs['DropoffAddressValidated'] = True
+            session_attrs['state'] = 'get_ride_type'
         except IndexError:
+            session_attrs['state'] = 'confirm_dropoff_address'
             return elicit_slot(session_attrs, name, slots, 'DropoffAddress',
                                'The dropoff address you specified, %s, could not be found. '
                                'Try again.' % slots['DropoffAddress'])
 
 
-    if slots['RideType'] is None:
+    if session_attrs['state'] == 'get_ride_type':
         estimates = lyft.get_estimates(slots['PickupAddress'], slots['DropoffAddress'])
+        session_attrs['estimates'] = json.dumps(estimates)
+        session_attrs['state'] = 'confirmation'
         return elicit_slot(session_attrs, name, slots, 'RideType',
                            lyft.format_estimates(estimates))
 
-    if intent_req['confirmationStatus'] == 'None':
-        msg = 'Should I confirm your ride from %s to %s, arriving in %s minutes, for $%s?'
-        pickup, dropoff = slots['PickupAddress'], slots['DropoffAddress']
+    if session_attrs['state'] == 'confirmation':
+        msg = 'Should I confirm your %s ride from %s to %s, arriving in %s minutes, for $%s?'
+        rtype, pickup, dropoff = slots['RideType'], slots['PickupAddress'], slots['DropoffAddress']
         eta, cost = session_attrs['ETA'], session_attrs['$']
-        msg = msg % (pickup, dropoff, eta, cost)
+        msg = msg % (rtype, pickup, dropoff, eta, cost)
         return confirm_intent(session_attrs, name, slots, msg)
 
 
