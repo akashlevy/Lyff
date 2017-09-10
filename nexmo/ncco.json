@@ -13,7 +13,7 @@
                     "aws_secret": "AWS_SECRET_HERE"
                 },
                 "type": "websocket",
-                "uri": "wss://lex-us-east-1.nexmo.com/bot/BookLyft/alias/Prod/user/AWSServiceRoleForLexBots/content"
+                "uri": "ws://34.226.122.10/bot/BookLyft/alias/Prod/user/AWSServiceRoleForLexBots/content"
             }
         ],
         "eventUrl": []
