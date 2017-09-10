@@ -41,7 +41,7 @@ def confirm_intent(session_attrs, intent_name, slots, message):
             'type': 'ConfirmIntent',
             'intentName': intent_name,
             'slots': slots,
-            'message': message
+            'message': {'contentType': 'PlainText', 'content': message}
         }
     }
 
@@ -55,7 +55,7 @@ def close(session_attrs, fulfillment_state, message):
         'dialogAction': {
             'type': 'Close',
             'fulfillmentState': fulfillment_state,
-            'message': message
+            'message': {'contentType': 'PlainText', 'content': message}
         }
     }
 
@@ -116,7 +116,7 @@ def book_lyft(intent_req):
 
 
     # Precursory state logic
-    if 'state' not in session_attrs:
+    if 'state' not in session_attrs or session_attrs['state'] is Nonec:
         key = bucket.get_key(intent_req['userId'])
         if key is not None:
             access_keys = json.loads(key.get_contents_as_string())
@@ -127,7 +127,7 @@ def book_lyft(intent_req):
             session_attrs['state'] = 'get_pin'
 
     if session_attrs['state'] == 'post_confirm_pickup_address':
-        if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() != 'yes':
+        if slots['PickupAddressConfirm'] is None or slots['PickupAddressConfirm'].lower() == 'no':
             session_attrs['state'] = 'get_pickup_address'
         else:
             session_attrs['state'] = 'validate_pickup_address'
@@ -149,7 +149,7 @@ def book_lyft(intent_req):
         if not (slots['Confirmation'] is None or slots['Confirmation'].lower() != 'yes'):
             session_attrs['state'] = 'book_lyft'
         else:
-            return close(session_attrs, 'Failed', 'Ride was not booked.')
+            return close({}, 'Failed', 'Ride was not booked.')
 
 
     # Main state logic
@@ -249,7 +249,7 @@ def book_lyft(intent_req):
             None
         )
         if 'ride_id' not in ride:
-            return close(session_attrs, 'Failed', 'Ride could not be booked.')
+            return close({}, 'Failed', 'Ride could not be booked.')
         session_attrs['ride_id'] = ride['ride_id']
         session_attrs['state'] = 'status'
         return elicit_slot(session_attrs, name, slots, 'Confirmation', "Ride booked! "
@@ -278,11 +278,11 @@ def dispatch(intent_req):
 
     # Dispatch to your bot's intent handlers
     if intent_name == 'BookLyft':
-        try:
-            return book_lyft(intent_req)
-        except Exception as e:
-            LOGGER.debug(str(e))
-            return close(session_attrs, 'Failed', 'Something went wrong. Please say Book a Lyft to try again.')
+        # try:
+        return book_lyft(intent_req)
+        # except Exception as e:
+        #     LOGGER.debug(str(e))
+        #     return close({}, 'Failed', 'Something went wrong. Please say Book a Lyft to try again.')
 
     raise Exception('Intent with name ' + intent_name + ' not supported')
 
