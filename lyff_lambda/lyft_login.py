@@ -1,9 +1,12 @@
 import requests
 import urllib
 import re
+import simplejson as json
 
 from lyft_creds import CLIENT_ID, CLIENT_SECRET
 from pprint import pprint
+from boto.s3.connection import S3Connection
+
 
 def login_get_xsrf_token(session):
     return session.cookies.get('XSRF-TOKEN', domain='www.lyft.com')
@@ -21,17 +24,20 @@ def login_start(phone_number):
     )
     if r.status_code != 200:
         return None
-    return s
+    return s.headers, s.cookies
 
-def login_continue(session, phone_number, code):
-    r = session.post(
+def login_continue(headers, cookies, phone_number, code):
+    s = requests.Session()
+    s.headers = headers
+    s.cookies = cookies
+    r = s.post(
         'https://www.lyft.com/api/lyft_auth/verify_user?phoneNumber=%s&verificationCode=%s' % (urllib.quote_plus(phone_number), code),
         verify=False,
-        headers={'X-XSRF-TOKEN': login_get_xsrf_token(session)}
+        headers={'X-XSRF-TOKEN': login_get_xsrf_token(s)}
     )
     if r.status_code != 200:
         return None
-    r2 = session.post(
+    r2 = s.post(
         'https://www.lyft.com/api/oauth/access_code',
         json={
             "client_id": CLIENT_ID,
@@ -40,7 +46,7 @@ def login_continue(session, phone_number, code):
             "response_type": "code"
         },
         verify=False,
-        headers={'X-XSRF-TOKEN': login_get_xsrf_token(session)}
+        headers={'X-XSRF-TOKEN': login_get_xsrf_token(s)}
     )
     url = r2.json()['immediate_redirect_uri']
     return re.search(r'\?code=([^&]+)&', url).group(1)
@@ -55,16 +61,23 @@ def get_access_token(authorization_code):
     return r.json()
 
 if __name__ == '__main__':
-    session = None
-    while session is None:
+    conn = S3Connection('AKIAIFD2RRTTU5KT54EQ', '54qZVoT8IZWVbukvx+H0/5HF647GUI2+3n5QB+oH')
+    bucket = conn.get_bucket('lyff-pennappsf17', validate=False)
+    headers, cookies = None, None
+    while headers is None or cookies is None:
         phone_number = raw_input('enter phone number: ')
-        session = login_start(phone_number)
+        headers, cookies = login_start(phone_number)
 
-    authorization_code = None
-    while authorization_code is None:
-        verify_code = raw_input('enter verification code: ')
-        authorization_code = login_continue(session, phone_number, verify_code)
+    if (bucket.get_key(phone_number) is not None):
+        pprint(bucket.get_key(phone_number))
 
-    print 'got authorization code: ' + authorization_code
+    elif (bucket.get_key(phone_number) is None):
+        authorization_code = None
+        while authorization_code is None:
+            verify_code = raw_input('enter verification code: ')
+            authorization_code = login_continue(session, phone_number, verify_code)
+        print 'got authorization code: ' + authorization_code
 
-    pprint(get_access_token(authorization_code))
+        key = bucket.new_key(phone_number)
+        key.set_contents_from_string(json.dumps(get_access_token(authorization_code)))
+        pprint(get_access_token(authorization_code))
