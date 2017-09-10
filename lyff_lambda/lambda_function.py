@@ -122,7 +122,7 @@ def book_lyft(intent_req):
     # Main state logic
     if session_attrs['state'] == 'get_pin':
         session_attrs['state'] = 'get_pin_continue'
-        headers, cookies = lyft_login.login_start(session_attrs['userId'])
+        headers, cookies = lyft_login.login_start(intent_req['userId'])
         session_attrs['lyft_headers'] = pickle.dumps(headers)
         session_attrs['lyft_cookies'] = pickle.dumps(cookies)
         return elicit_slot(session_attrs, name, slots, 'LyftPIN',
@@ -131,8 +131,7 @@ def book_lyft(intent_req):
         token1 = lyft_login.login_continue(
             pickle.loads(session_attrs['lyft_headers']),
             pickle.loads(session_attrs['lyft_cookies']),
-            #session_attrs['userId'],
-            '6466230283',
+            intent_req['userId'],
             slots['LyftPIN']
         )
         if token1 is not None:
