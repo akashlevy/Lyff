@@ -119,6 +119,11 @@ def book_lyft(intent_req):
         else:
             session_attrs['state'] = 'validate_dropoff_address'
 
+    if session_attrs['state'] == 'confirmation':
+        if not (slots['Confirmtion'] is None or slots['Confirmation'].lower() == 'no'):
+            session_attrs['state'] = 'book_lyft'
+
+
     # Main state logic
     if session_attrs['state'] == 'get_pin':
         session_attrs['state'] = 'get_pin_continue'
@@ -143,7 +148,7 @@ def book_lyft(intent_req):
             except:
                 pass
         if 'access_token' not in session_attrs:
-            session_attrs['state'] = 'get_pin'
+            headers, cookies = lyft_login.login_start(intent_req['userId'])
             return elicit_slot(session_attrs, name, slots, 'LyftPIN',
                                'There was an error with the PIN you entered %s.'
                                'A Lyft PIN was just texted to you, please say the 4 digits.' %
@@ -197,9 +202,30 @@ def book_lyft(intent_req):
     if session_attrs['state'] == 'confirmation':
         msg = 'Should I confirm your %s ride from %s to %s, arriving in %s minutes, for $%s?'
         rtype, pickup, dropoff = slots['RideType'], slots['PickupAddress'], slots['DropoffAddress']
-        eta, cost = session_attrs['ETA'], session_attrs['$']
+        #eta, cost = session_attrs['ETA'], session_attrs['$']
+        eta, cost = '5 minutes', '5'
         msg = msg % (rtype, pickup, dropoff, eta, cost)
-        return confirm_intent(session_attrs, name, slots, msg)
+        return elicit_slot(session_attrs, name, slots, 'Confirmation', msg)
+
+    if session_attrs['state'] == 'book_lyft':
+        ride = lyft.request_ride(
+            lyft.geocode(slots['PickupAddress']),
+            lyft.geocode(slots['DropoffAddress']),
+            slots['RideType'],
+            session_attrs['access_token'],
+            None
+        )
+        if 'ride_id' not in ride:
+            return close(session_attrs, 'Fulfilled', 'Ride could not be booked.')
+        session_attrs['ride_id'] = ride['ride_id']
+        session_attrs['state'] = 'status'
+        return elicit_slot(session_attrs, name, slots, 'Confirmation', "Ride booked! "
+                           "Say \"status\" to retrieve the status of your ride.")
+
+    if session_attrs['state'] == 'status':
+        status = lyft.check_ride(session_attrs['access_token'], session_attrs['ride_id'])
+        ride_status = status['rideStatus']
+        return elicit_slot(session_attrs, name, slots, 'Confirmation', "Status: " % ride_status)
 
 
 # --- Intents ---
