@@ -10,12 +10,12 @@ LOGGER.setLevel(logging.DEBUG)
 # --- Helpers that build all of the responses ---
 
 
-def elicit_slot(session_attributes, intent_name, slots, slot_to_elicit, message):
+def elicit_slot(session_attrs, intent_name, slots, slot_to_elicit, message):
     """
     Elicit a slot in Lex.
     """
     return {
-        'sessionAttributes': session_attributes,
+        'sessionAttributes': session_attrs,
         'dialogAction': {
             'type': 'ElicitSlot',
             'intentName': intent_name,
@@ -26,12 +26,12 @@ def elicit_slot(session_attributes, intent_name, slots, slot_to_elicit, message)
     }
 
 
-def confirm_intent(session_attributes, intent_name, slots, message):
+def confirm_intent(session_attrs, intent_name, slots, message):
     """
     Confirm intent in Lex.
     """
     return {
-        'sessionAttributes': session_attributes,
+        'sessionAttributes': session_attrs,
         'dialogAction': {
             'type': 'ConfirmIntent',
             'intentName': intent_name,
@@ -41,12 +41,12 @@ def confirm_intent(session_attributes, intent_name, slots, message):
     }
 
 
-def close(session_attributes, fulfillment_state, message):
+def close(session_attrs, fulfillment_state, message):
     """
     Close session in Lex.
     """
     response = {
-        'sessionAttributes': session_attributes,
+        'sessionAttributes': session_attrs,
         'dialogAction': {
             'type': 'Close',
             'fulfillmentState': fulfillment_state,
@@ -57,12 +57,12 @@ def close(session_attributes, fulfillment_state, message):
     return response
 
 
-def delegate(session_attributes, slots):
+def delegate(session_attrs, slots):
     """
     Delegate slots in Lex.
     """
     return {
-        'sessionAttributes': session_attributes,
+        'sessionAttributes': session_attrs,
         'dialogAction': {
             'type': 'Delegate',
             'slots': slots
@@ -88,54 +88,85 @@ def try_ex(func):
 
 # --- Functions that control the bot's behavior ---
 
-def book_lyft(intent_request):
+def book_lyft(intent_req):
     """
     Performs dialog management and fulfillment for booking a Lyft.
     """
 
-    name = intent_request['currentIntent']['name']
-    slots = intent_request['currentIntent']['slots']
-    session_attributes = intent_request['sessionAttributes']
+    name = intent_req['currentIntent']['name']
+    slots = intent_req['currentIntent']['slots']
+    session_attrs = intent_req['sessionAttributes'] if intent_req['sessionAttributes'] else {}
 
-    LOGGER.debug(intent_request)
+    LOGGER.debug(intent_req)
 
-    if slots['PickupAddress'] is None:
-        return elicit_slot(session_attributes, name, slots, 'PickupAddress',
+
+    if slots['PickupAddress'] is None or slots['PickupAddressConfirm'].lower() == 'no':
+        session_attrs['PickupAddressConfirm'] = 'no'
+        return elicit_slot(session_attrs, name, slots, 'PickupAddress',
                            'At what address would you like to be picked up?')
-    if 'PickupCoords' not in session_attributes:
+    if slots['PickupAddressConfirm'] is None or
+       session_attrs['PickupAddressConfirm'].lower() == 'no':
+        return elicit_slot(session_attrs, name, slots, 'PickupAddressConfirm',
+                           'Was that %s?' % slots['PickupAddress'])
+    if 'PickupAddressValidated' not in session_attrs:
         try:
             lyft.geocode(slots['PickupAddress'])
+            session_attrs['PickupAddressValidated'] = True
         except IndexError:
-            return elicit_slot(session_attributes, name, slots, 'PickupAddress',
-                               'The start address you specified, %s, could not be found. '
+            return elicit_slot(session_attrs, name, slots, 'PickupAddress',
+                               'The pickup address you specified, %s, could not be found. '
                                'Try again.' % slots['PickupAddress'])
 
-    if slots['DropoffAddress'] is None:
-        return elicit_slot({}, name, slots, 'DropoffAddress',
+
+    if slots['DropoffAddress'] is None or slots['DropoffAddressConfirm'].lower() == 'no':
+        session_attrs['PickupAddressConfirm'] = 'no'
+        return elicit_slot(session_attrs, name, slots, 'DropoffAddress',
                            'At what address would you like to be dropped off?')
+    if slots['PickupAddressConfirm'] is None or
+    session_attrs['DropoffAddressConfirm'].lower() == 'no':
+        return elicit_slot(session_attrs, name, slots, 'PickupAddressConfirm',
+                           'Was that %s?' % slots['PickupAddress'])
+    if 'DropoffAddressValidated' not in session_attrs:
+        try:
+            lyft.geocode(slots['DropoffAddress'])
+            session_attrs['DropoffAddressValidated'] = True
+        except IndexError:
+            return elicit_slot(session_attrs, name, slots, 'DropoffAddress',
+                               'The dropoff address you specified, %s, could not be found. '
+                               'Try again.' % slots['DropoffAddress'])
+
+
     if slots['RideType'] is None:
-        return elicit_slot({}, name, slots, 'RideType',
-                           'Which type of ride would you like?')
+        estimates = lyft.get_estimates(slots['PickupAddress'], slots['DropoffAddress'])
+        return elicit_slot(session_attrs, name, slots, 'RideType',
+                           lyft.format_estimates(estimates))
+
+    if intent_req['confirmationStatus'] == 'None':
+        msg = 'Should I confirm your ride from %s to %s, arriving in %s minutes, for $%s?'
+        pickup, dropoff = slots['PickupAddress'], slots['DropoffAddress']
+        eta, cost = session_attrs['ETA'], session_attrs['$']
+        msg = msg % (pickup, dropoff, eta, cost)
+        return confirm_intent(session_attrs, name, slots, msg)
 
 
 # --- Intents ---
 
 
-def dispatch(intent_request):
+def dispatch(intent_req):
     """
     Called when the user specifies an intent for this bot.
     """
 
-    userid = intent_request['userId']
-    name = intent_request['currentIntent']['name']
+    userid = intent_req['userId']
+    name = intent_req['currentIntent']['name']
 
     LOGGER.debug('dispatch userId=%s, intentName=%s', userid, name)
 
-    intent_name = intent_request['currentIntent']['name']
+    intent_name = intent_req['currentIntent']['name']
 
     # Dispatch to your bot's intent handlers
     if intent_name == 'BookLyft':
-        return book_lyft(intent_request)
+        return book_lyft(intent_req)
 
     raise Exception('Intent with name ' + intent_name + ' not supported')
 
