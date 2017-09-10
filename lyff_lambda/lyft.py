@@ -50,17 +50,17 @@ def format_estimates(estimates):
     """
     Format estimates for Lex.
     """
-    output = 'I found %d ride types. ' % len(estimates.cost_estimates)
-    for estimate in estimates.cost_estimates:
+    output = 'I found %d ride types. ' % len(estimates.prices)
+    for estimate in estimates.prices:
         if estimate['estimated_cost_cents_min'] == estimate['estimated_cost_cents_max']:
             cost = str(round(estimate['estimated_cost_cents_min'] / 100))
         else:
-            cost = 'between %d and %d' % (round(estimate['estimated_cost_cents_min'] / 100), round(estimate['estimated_cost_cents_max'] / 100))
+            cost = '%d to %d' % (round(estimate['estimated_cost_cents_min'] / 100), round(estimate['estimated_cost_cents_max'] / 100))
         cost += ' dollars'
-        output += 'A %s will cost %s. ' % (estimate['display_name'], cost)
-        for etaEstimate in estimates.eta_estimates:
+        output += 'A %s is %s ' % (estimate['display_name'], cost)
+        for etaEstimate in estimates.eta:
             if estimate['ride_type'] == etaEstimate['ride_type']:
-                output += 'It will arrive in approximately %d minutes.' % (etaEstimate["eta_seconds"] / 60) 
+                output += 'in %d minutes. ' % (etaEstimate["eta_seconds"] / 60) 
     output += 'Which type of ride would you like?'
     return output
 
@@ -109,6 +109,5 @@ if __name__ == '__main__':
     #LOGGER.debug(ESTS)
     #LOGGER.debug(format_estimates(ESTS))
 
-    ssl._create_default_https_context = ssl._create_unverified_context
     result = get_estimates('5049 Oceania St.', 'Princeton University')
     print(format_estimates(result))
