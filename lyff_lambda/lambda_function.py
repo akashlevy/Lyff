@@ -145,9 +145,11 @@ def book_lyft(intent_req):
         else:
             session_attrs['state'] = 'confirmation'
 
-    if session_attrs['state'] == 'confirmation':
+    if session_attrs['state'] == 'post_confirmation':
         if not (slots['Confirmation'] is None or slots['Confirmation'].lower() != 'yes'):
             session_attrs['state'] = 'book_lyft'
+        else:
+            return close(session_attrs, 'Failed', 'Ride was not booked.')
 
 
     # Main state logic
@@ -235,6 +237,7 @@ def book_lyft(intent_req):
         msg = 'Should I confirm your %s ride from %s to %s?'
         rtype, pickup, dropoff = slots['RideType'], slots['PickupAddress'], slots['DropoffAddress']
         msg = msg % (rtype, pickup, dropoff)
+        session_attrs['state'] = 'post_confirmation'
         return elicit_slot(session_attrs, name, slots, 'Confirmation', msg)
 
     if session_attrs['state'] == 'book_lyft':
