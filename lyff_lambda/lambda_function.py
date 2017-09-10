@@ -231,7 +231,7 @@ def book_lyft(intent_req):
         ride = lyft.request_ride(
             lyft.geocode(slots['PickupAddress']),
             lyft.geocode(slots['DropoffAddress']),
-            slots['RideType'].lower().split().join('_'),
+            '_'.join(slots['RideType'].lower().split()),
             session_attrs['access_token'],
             None
         )
