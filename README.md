@@ -107,5 +107,5 @@ This app was built at PennApps Fall 2017 by Akash Levy, Zachary Liu, Selina Wang
 7. You're done! Try calling your phone number to make sure everything works!
 
 ## Future Work
-    * Support for booking through SMS
-    * Support for stateful calls
+* Support for booking through SMS
+* Support for stateful calls
