@@ -81,7 +81,7 @@ This app was built at PennApps Fall 2017 by Akash Levy, Zachary Liu, Selina Wang
     * Run the server provided by ![Zach's lex-connector](https://github.com/zacharyliu/lex-connector) at a URL that is accessible to Nexmo. We used Amazon EC2 and configured the domain to be publicly accessible. Alternatively, once the fixes to lex-connector in Zach's fork are pulled into the ![main lex-connector branch](https://github.com/Nexmo/lex-connector), you can follow ![these instructions](https://developer.nexmo.com/voice/voice-api/guides/connecting-voice-calls-to-amazon-lex-bots) to use Nexmo's default connector to Amazon Lex.
     * Modify the ```uri``` attribute in ```nexmo/ncco.json``` to look like this:
       ```
-      wss://LEX_CONNECTOR_DOMAIN_NAME_OR_IP_ADDRESS/bot/BOTNAME/alias/PUBLISH_ALIAS/user/AWSServiceRoleForLexBots/content
+      wss://LEX_CONNECTOR_ENDPOINT/bot/BOTNAME/alias/PUBLISH_ALIAS/user/AWSServiceRoleForLexBots/content
       ```
     * Leave the ```AWS_KEY_HERE``` and ```AWS_SECRET_HERE``` in this file untouched
     
