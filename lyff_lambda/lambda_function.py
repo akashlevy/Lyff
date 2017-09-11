@@ -98,6 +98,9 @@ def book_lyft(intent_req):
     Performs dialog management and fulfillment for booking a Lyft.
     """
 
+    if intent_req['inputTranscript'].lower() == 'cancel':
+        return close({}, 'Failed', 'Cancelled')
+
     name = intent_req['currentIntent']['name']
     slots = intent_req['currentIntent']['slots']
     session_attrs = intent_req['sessionAttributes'] if intent_req['sessionAttributes'] else {}
@@ -116,7 +119,7 @@ def book_lyft(intent_req):
 
 
     # Precursory state logic
-    if 'state' not in session_attrs or session_attrs['state'] is Nonec:
+    if 'state' not in session_attrs or session_attrs['state'] is None:
         key = bucket.get_key(intent_req['userId'])
         if key is not None:
             access_keys = json.loads(key.get_contents_as_string())
@@ -133,20 +136,20 @@ def book_lyft(intent_req):
             session_attrs['state'] = 'validate_pickup_address'
 
     if session_attrs['state'] == 'post_confirm_dropoff_address':
-        if slots['DropoffAddressConfirm'] is None or slots['DropoffAddressConfirm'].lower() != 'yes':
+        if slots['DropoffAddressConfirm'] is None or slots['DropoffAddressConfirm'].lower() == 'no':
             session_attrs['state'] = 'get_dropoff_address'
         else:
             session_attrs['state'] = 'validate_dropoff_address'
 
     if session_attrs['state'] == 'post_confirm_ride_type':
-        if slots['RideTypeConfirm'] is None or slots['RideTypeConfirm'].lower() != 'yes':
+        if slots['RideTypeConfirm'] is None or slots['RideTypeConfirm'].lower() == 'no':
             session_attrs['state'] = 'confirm_ride_type'
             return elicit_slot(session_attrs, name, slots, 'RideType', 'Which ride type?')
         else:
             session_attrs['state'] = 'confirmation'
 
     if session_attrs['state'] == 'post_confirmation':
-        if not (slots['Confirmation'] is None or slots['Confirmation'].lower() != 'yes'):
+        if not (slots['Confirmation'] is None or slots['Confirmation'].lower() == 'no'):
             session_attrs['state'] = 'book_lyft'
         else:
             return close({}, 'Failed', 'Ride was not booked.')
