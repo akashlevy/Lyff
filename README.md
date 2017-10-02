@@ -109,3 +109,5 @@ This app was built at PennApps Fall 2017 by Akash Levy, Zachary Liu, Selina Wang
 ## Future Work
 * Support for booking through SMS
 * Support for stateful calls
+* Support for getting ride status
+* Support for connecting to Lyft driver using Nexmo proxy
